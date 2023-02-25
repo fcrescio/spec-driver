@@ -2,7 +2,7 @@ build_cc7:
     image: gitlab-registry.cern.ch/linuxsupport/cc7-base
     stage: build
     script:
-        - yum install -y gcc kernel-devel make
+        - yum install -y gcc kernel-devel kernel-headers make
         - cd src
         - make
         - make install
