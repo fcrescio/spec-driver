@@ -6,11 +6,8 @@ KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 INSTALLDIR ?= /lib/modules/$(shell uname -r)/extra
 PWD := $(shell pwd)
 
-default: dolink
+default:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
-
-dolink:
-	@ln -sf ../libSpec/include/specDriver.h
 
 install:
 	@mkdir -p $(INSTALLDIR)
