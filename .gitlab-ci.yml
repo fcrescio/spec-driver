@@ -6,3 +6,26 @@ build_cc7:
         - cd src
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
 
+build_c8:
+    image: gitlab-registry.cern.ch/linuxsupport/c8-base
+    stage: build
+    script:
+        - yum install -y gcc kernel kernel-devel kernel-headers make libelf-dev elfutils-libelf-devel
+        - cd src
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
+build_cs8:
+    image: gitlab-registry.cern.ch/linuxsupport/cs8-base
+    stage: build
+    script:
+        - yum install -y gcc kernel kernel-devel kernel-headers make libelf-dev elfutils-libelf-devel
+        - cd src
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
+build_cs9:
+    image: gitlab-registry.cern.ch/linuxsupport/cs9-base
+    stage: build
+    script:
+        - yum install -y gcc kernel kernel-devel kernel-headers make libelf-dev elfutils-libelf-devel
+        - cd src
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
