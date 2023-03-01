@@ -17,7 +17,6 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
-#include <stdbool.h>
 
 #include "config.h"
 
