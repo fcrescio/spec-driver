@@ -2,7 +2,7 @@
 
 PCIe kernel driver designed for Simple PCIe Carrier Cards with FPGA.
 
-Meant to be used with [YARR-PCIe firmware][https://gitlab.cern.ch/YARR/yarr-pcie/yarr-pcie-fw] and [YARR software][https://gitlab.cern.ch/YARR/YARR].
+Meant to be used with [YARR-PCIe firmware](https://gitlab.cern.ch/YARR/yarr-pcie/yarr-pcie-fw) and [YARR software](https://gitlab.cern.ch/YARR/YARR).
 
 ## How to install
 
