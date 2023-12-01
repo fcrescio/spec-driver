@@ -160,7 +160,12 @@ int specdriver_umem_sgmap(specdriver_privdata_t *privdata, umem_handle_t *umem_h
 	/* Use the page list to populate the SG list */
 	/* SG entries may be merged, res is the number of used entries */
 	/* We have originally nr_pages entries in the sg list */
-	if ((nents = pci_map_sg(privdata->pdev, sg, nr_pages, PCI_DMA_BIDIRECTIONAL)) == 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        if ((nents = dma_map_sg(&privdata->pdev->dev, sg, nr_pages, DMA_BIDIRECTIONAL)) == 0)
+#else
+        if ((nents = pci_map_sg(privdata->pdev, sg, nr_pages, PCI_DMA_BIDIRECTIONAL)) == 0)
+#endif
+
 		goto umem_sgmap_unmap;
 
 	mod_info_dbg("Mapped SG list (%d entries).\n", nents);
@@ -193,7 +198,12 @@ int specdriver_umem_sgmap(specdriver_privdata_t *privdata, umem_handle_t *umem_h
 umem_sgmap_name_fail:
 	kfree(umem_entry);
 umem_sgmap_entry:
-	pci_unmap_sg( privdata->pdev, sg, nr_pages, PCI_DMA_BIDIRECTIONAL );
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        dma_unmap_sg( &privdata->pdev->dev, sg, nr_pages, DMA_BIDIRECTIONAL );
+#else
+        pci_unmap_sg( privdata->pdev, sg, nr_pages, PCI_DMA_BIDIRECTIONAL );
+#endif
+
 umem_sgmap_unmap:
 	/* release pages */
 	if (nr_pages > 0) {
@@ -228,7 +238,12 @@ int specdriver_umem_sgunmap(specdriver_privdata_t *privdata, specdriver_umem_ent
 	specdriver_sysfs_remove(privdata, &(umem_entry->sysfs_attr));
 
 	/* Unmap user memory */
-	pci_unmap_sg( privdata->pdev, umem_entry->sg, umem_entry->nr_pages, PCI_DMA_BIDIRECTIONAL );
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        dma_unmap_sg( &privdata->pdev->dev, umem_entry->sg, umem_entry->nr_pages, DMA_BIDIRECTIONAL );
+#else
+        pci_unmap_sg( privdata->pdev, umem_entry->sg, umem_entry->nr_pages, PCI_DMA_BIDIRECTIONAL );
+#endif
+
 
 	/* Release the pages */
 	if (umem_entry->nr_pages > 0) {
@@ -417,7 +432,22 @@ int specdriver_umem_sync( specdriver_privdata_t *privdata, umem_handle_t *umem_h
 	if (umem_entry == NULL)
 		return -EINVAL;					/* umem_handle is not valid */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        switch (umem_handle->dir) {
+                case SPECDRIVER_DMA_TODEVICE:
+                        dma_sync_sg_for_device( &privdata->pdev->dev, umem_entry->sg, umem_entry->nents, DMA_TO_DEVICE );
+                        break;
+                case SPECDRIVER_DMA_FROMDEVICE:
+                        dma_sync_sg_for_cpu( &privdata->pdev->dev, umem_entry->sg, umem_entry->nents, DMA_FROM_DEVICE );
+                        break;
+                case SPECDRIVER_DMA_BIDIRECTIONAL:
+                        dma_sync_sg_for_device( &privdata->pdev->dev, umem_entry->sg, umem_entry->nents, DMA_BIDIRECTIONAL );
+                        dma_sync_sg_for_cpu( &privdata->pdev->dev, umem_entry->sg, umem_entry->nents, DMA_BIDIRECTIONAL );
+                        break;
+                default:
+                        return -EINVAL;                         /* wrong direction parameter */
+        }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
 	switch (umem_handle->dir) {
 		case SPECDRIVER_DMA_TODEVICE:
 			pci_dma_sync_sg_for_device( privdata->pdev, umem_entry->sg, umem_entry->nents, PCI_DMA_TODEVICE );

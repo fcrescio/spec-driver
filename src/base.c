@@ -214,16 +214,10 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
 	}
     
     /* Setup DMA mask, no idea why ?? */
-	if(pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
+	if(dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
 		mod_info("64bits bus master DMA capable\n");
-		if(pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) < 0) {
-			mod_info("Unable to perform 64bits consistent DMA mask set operation!\n");
-		}
-	} else if(pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) == 0) {
+	} else if(dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) == 0) {
 		mod_info("32bits bus master DMA capable\n");
-		if(pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) < 0) {
-		    mod_info("Unable to perform 64bits consistent DMA mask set operation!\n");
-		}
 	} else {
 	    mod_info("Unable to perform DMA mask set operation!\n");
 	}
@@ -232,92 +226,92 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
     if (pci_enable_msi(pdev) != 0) 
         mod_info("Failed activating MSI!"); 
 
-	/* Set Memory-Write-Invalidate support */
-	if ((err = pci_set_mwi(pdev)) != 0)
-		mod_info("MWI not supported. Continue without enabling MWI.\n");
+    /* Set Memory-Write-Invalidate support */
+    if ((err = pci_set_mwi(pdev)) != 0)
+	mod_info("MWI not supported. Continue without enabling MWI.\n");
 
-	/* Get / Increment the device id */
-	devid = atomic_inc_return(&specdriver_deviceCount) - 1;
-	if (devid >= MAXDEVICES) {
-		mod_info("Maximum number of devices reached! Increase MAXDEVICES.\n");
-		err = -ENOMSG;
-		goto probe_maxdevices_fail;
-	}
+    /* Get / Increment the device id */
+    devid = atomic_inc_return(&specdriver_deviceCount) - 1;
+    if (devid >= MAXDEVICES) {
+	mod_info("Maximum number of devices reached! Increase MAXDEVICES.\n");
+	err = -ENOMSG;
+	goto probe_maxdevices_fail;
+    }
 
-	/* Allocate and initialize the private data for this device */
-	if ((privdata = kcalloc(1, sizeof(*privdata), GFP_KERNEL)) == NULL) {
-		err = -ENOMEM;
-		goto probe_nomem;
-	}
+    /* Allocate and initialize the private data for this device */
+    if ((privdata = kcalloc(1, sizeof(*privdata), GFP_KERNEL)) == NULL) {
+	err = -ENOMEM;
+	goto probe_nomem;
+    }
 
-	INIT_LIST_HEAD(&(privdata->kmem_list));
-	spin_lock_init(&(privdata->kmemlist_lock));
-	atomic_set(&privdata->kmem_count, 0);
+    INIT_LIST_HEAD(&(privdata->kmem_list));
+    spin_lock_init(&(privdata->kmemlist_lock));
+    atomic_set(&privdata->kmem_count, 0);
+     
+    INIT_LIST_HEAD(&(privdata->umem_list));
+    spin_lock_init(&(privdata->umemlist_lock));
+    atomic_set(&privdata->umem_count, 0);
+ 
+    pci_set_drvdata( pdev, privdata );
+    privdata->pdev = pdev;
+ 
+    /* Device add to sysfs */
+    devno = MKDEV(MAJOR(specdriver_devt), MINOR(specdriver_devt) + devid);
+    privdata->devno = devno;
+    if (specdriver_class != NULL) {
+	/* FIXME: some error checking missing here */
+	privdata->class_dev = class_device_create(specdriver_class, NULL, devno, &(pdev->dev), NODENAMEFMT, MINOR(specdriver_devt) + devid, privdata);
+	class_set_devdata( privdata->class_dev, privdata );
+	mod_info("Device /dev/%s%d added\n",NODENAME,MINOR(specdriver_devt) + devid);
+    }
 
-	INIT_LIST_HEAD(&(privdata->umem_list));
-	spin_lock_init(&(privdata->umemlist_lock));
-	atomic_set(&privdata->umem_count, 0);
+/* Setup mmaped BARs into kernel space */
+    if ((err = specdriver_probe_irq(privdata)) != 0)
+	goto probe_irq_probe_fail;
 
-	pci_set_drvdata( pdev, privdata );
-	privdata->pdev = pdev;
-
-	/* Device add to sysfs */
-	devno = MKDEV(MAJOR(specdriver_devt), MINOR(specdriver_devt) + devid);
-	privdata->devno = devno;
-	if (specdriver_class != NULL) {
-		/* FIXME: some error checking missing here */
-		privdata->class_dev = class_device_create(specdriver_class, NULL, devno, &(pdev->dev), NODENAMEFMT, MINOR(specdriver_devt) + devid, privdata);
-		class_set_devdata( privdata->class_dev, privdata );
-		mod_info("Device /dev/%s%d added\n",NODENAME,MINOR(specdriver_devt) + devid);
-	}
-
-	/* Setup mmaped BARs into kernel space */
-	if ((err = specdriver_probe_irq(privdata)) != 0)
-		goto probe_irq_probe_fail;
-
-	/* Populate sysfs attributes for the class device */
-	/* TODO: correct errorhandling. ewww. must remove the files in reversed order :-( */
+/* Populate sysfs attributes for the class device */
+/* TODO: correct errorhandling. ewww. must remove the files in reversed order :-( */
 	#define sysfs_attr(name) do { \
 			if (class_device_create_file(sysfs_attr_def_pointer, &sysfs_attr_def_name(name)) != 0) \
 				goto probe_device_create_fail; \
 			} while (0)
-	sysfs_attr(irq_count);
-	sysfs_attr(irq_queues);
-	sysfs_attr(mmap_mode);
-	sysfs_attr(mmap_area);
-	sysfs_attr(kmem_count);
-	sysfs_attr(kmem_alloc);
-	sysfs_attr(kmem_free);
-	sysfs_attr(kbuffers);
-	sysfs_attr(umappings);
-	sysfs_attr(umem_unmap);
-	#undef sysfs_attr
+    sysfs_attr(irq_count);
+    sysfs_attr(irq_queues);
+    sysfs_attr(mmap_mode);
+    sysfs_attr(mmap_area);
+    sysfs_attr(kmem_count);
+    sysfs_attr(kmem_alloc);
+    sysfs_attr(kmem_free);
+    sysfs_attr(kbuffers);
+    sysfs_attr(umappings);
+    sysfs_attr(umem_unmap);
+    #undef sysfs_attr
 
-	/* Register character device */
-	cdev_init( &(privdata->cdev), &specdriver_fops );
+/* Register character device */
+    cdev_init( &(privdata->cdev), &specdriver_fops );
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,35)
-	privdata->cdev.owner = THIS_MODULE;
+    privdata->cdev.owner = THIS_MODULE;
 #endif
-	privdata->cdev.ops = &specdriver_fops;
-	err = cdev_add( &privdata->cdev, devno, 1 );
-	if (err) {
-		mod_info( "Couldn't add character device.\n" );
-		goto probe_cdevadd_fail;
-	}
+    privdata->cdev.ops = &specdriver_fops;
+    err = cdev_add( &privdata->cdev, devno, 1 );
+    if (err) {
+	mod_info( "Couldn't add character device.\n" );
+	goto probe_cdevadd_fail;
+    }
 
-	return 0;
+    return 0;
 
 probe_device_create_fail:
 probe_cdevadd_fail:
 probe_irq_probe_fail:
-	specdriver_irq_unmap_bars(privdata);
-	kfree(privdata);
+    specdriver_irq_unmap_bars(privdata);
+    kfree(privdata);
 probe_nomem:
-	atomic_dec(&specdriver_deviceCount);
+    atomic_dec(&specdriver_deviceCount);
 probe_maxdevices_fail:
-	pci_disable_device(pdev);
+    pci_disable_device(pdev);
 probe_pcien_fail:
- 	return err;
+    return err;
 }
 
 /**
