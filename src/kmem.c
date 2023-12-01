@@ -55,7 +55,11 @@ int specdriver_kmem_alloc(specdriver_privdata_t *privdata, kmem_handle_t *kmem_h
 	 * CPU address is used for the mmap (internal to the driver), and
 	 * PCI address is the address passed to the DMA Controller in the device.
 	 */
-	retptr = pci_alloc_consistent( privdata->pdev, kmem_handle->size, &(kmem_entry->dma_handle) );
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        retptr = dma_alloc_coherent( &privdata->pdev->dev, kmem_handle->size, &(kmem_entry->dma_handle), GFP_KERNEL );
+#else
+        retptr = pci_alloc_consistent( privdata->pdev, kmem_handle->size, &(kmem_entry->dma_handle) );
+#endif
 	if (retptr == NULL)
 		goto kmem_alloc_mem_fail;
 	kmem_entry->cpua = (unsigned long)retptr;
@@ -125,7 +129,23 @@ int specdriver_kmem_sync( specdriver_privdata_t *privdata, kmem_sync_t *kmem_syn
 	if ((kmem_entry = specdriver_kmem_find_entry(privdata, &(kmem_sync->handle))) == NULL)
 		return -EINVAL;					/* kmem_handle is not valid */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        switch (kmem_sync->dir) {
+                case SPECDRIVER_DMA_TODEVICE:
+                        dma_sync_single_for_device( &privdata->pdev->dev, kmem_entry->dma_handle, kmem_entry->size, DMA_TO_DEVICE );
+                        break;
+                case SPECDRIVER_DMA_FROMDEVICE:
+                        dma_sync_single_for_cpu( &privdata->pdev->dev, kmem_entry->dma_handle, kmem_entry->size, DMA_FROM_DEVICE );
+                        break;
+                case SPECDRIVER_DMA_BIDIRECTIONAL:
+                        dma_sync_single_for_device( &privdata->pdev->dev, kmem_entry->dma_handle, kmem_entry->size, DMA_BIDIRECTIONAL );
+                        dma_sync_single_for_cpu( &privdata->pdev->dev, kmem_entry->dma_handle, kmem_entry->size, DMA_BIDIRECTIONAL );
+                        break;
+                default:
+                        return -EINVAL;                         /* wrong direction parameter */
+        }
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
 	switch (kmem_sync->dir) {
 		case SPECDRIVER_DMA_TODEVICE:
 			pci_dma_sync_single_for_device( privdata->pdev, kmem_entry->dma_handle, kmem_entry->size, PCI_DMA_TODEVICE );
@@ -198,7 +218,11 @@ int specdriver_kmem_free_entry(specdriver_privdata_t *privdata, specdriver_kmem_
 #endif
 
 	/* Release DMA memory */
-	pci_free_consistent( privdata->pdev, kmem_entry->size, (void *)(kmem_entry->cpua), kmem_entry->dma_handle );
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
+        dma_free_coherent( &privdata->pdev->dev, kmem_entry->size, (void *)(kmem_entry->cpua), kmem_entry->dma_handle );
+#else
+        pci_free_consistent( privdata->pdev, kmem_entry->size, (void *)(kmem_entry->cpua), kmem_entry->dma_handle );
+#endif
 
 	/* Remove the kmem list entry */
 	spin_lock( &(privdata->kmemlist_lock) );

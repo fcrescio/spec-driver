@@ -28,5 +28,5 @@ uninstall:
 	@rm /etc/udev/rules.d/99-spec.rules
 
 clean:
-	rm -f *.o *.ko *.mod.c .*.cmd specDriver.h *.unsigned *.order *.symvers
+	rm -f *.o *.ko *.mod.c .*.cmd *.unsigned *.order *.symvers
 	rm -rf .tmp_versions 

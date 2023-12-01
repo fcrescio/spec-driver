@@ -30,6 +30,26 @@ build_cs9:
         - cd src
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
 
+build_u22:
+    image: docker.io/library/ubuntu:22.04
+    stage: build
+    script:
+        - apt update
+        - apt -y install build-essential linux-headers-generic
+        - ls /lib/modules
+        - cd src 
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
+build_u23:
+    image: docker.io/library/ubuntu:23.04
+    stage: build
+    script:
+        - apt update
+        - apt -y install build-essential linux-headers-generic
+        - ls /lib/modules
+        - cd src
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
 build_alma9:
     image: gitlab-registry.cern.ch/linuxsupport/alma9-base
     stage: build
