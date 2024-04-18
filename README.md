@@ -12,7 +12,7 @@ Driver only needs to be installed once and should load automatically afterwards.
 cd src
 make
 sudo make install
-sudo make depmod
+sudo depmod
 modprobe -v specDriver
 ```
 
