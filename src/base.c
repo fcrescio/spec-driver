@@ -115,7 +115,12 @@ static int __init specdriver_init(void)
 	mod_info("Major %d allocated to nodename '%s'\n", MAJOR(specdriver_devt), NODENAME);
 
 	/* Register driver class */
+#ifdef KERNEL_ALMA_9
+        /* alma9 back ports class_create changes from kernel 6.4 */
+	specdriver_class = class_create(NODENAME);
+#else	
 	specdriver_class = class_create(THIS_MODULE, NODENAME);
+#endif
 
 	if (IS_ERR(specdriver_class)) {
 		mod_info("No sysfs support. Module not loaded.\n");
