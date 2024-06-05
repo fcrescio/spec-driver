@@ -16,7 +16,7 @@ endif
 
 
 default:
-	@echo "OS_NAM<E: $(OS_NAME)"
+	@echo "OS_NAME: $(OS_NAME)"
 	@echo "OS_VERSION: $(OS_VERSION)"
 	@echo "KBUILD_CFLAGS: $(KBUILD_CFLAGS)"
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
