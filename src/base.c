@@ -117,6 +117,14 @@ static int __init specdriver_init(void)
 	/* Register driver class */
 #ifdef KERNEL_ALMA_9
         /* alma9 back ports class_create changes from kernel 6.4 */
+#define CREATE_CLASS_SINGLE_ARG 1
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0)
+#define CREATE_CLASS_SINGLE_ARG 1
+#endif
+
+#ifdef CREATE_CLASS_SINGLE_ARG
 	specdriver_class = class_create(NODENAME);
 #else	
 	specdriver_class = class_create(THIS_MODULE, NODENAME);

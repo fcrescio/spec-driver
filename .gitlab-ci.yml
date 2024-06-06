@@ -57,3 +57,14 @@ build_alma9:
         - yum install -y gcc kernel kernel-devel kernel-headers make elfutils-libelf-devel
         - cd src
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
+
+build_u22_hwe:
+    image: docker.io/library/ubuntu:22.04
+    stage: build
+    script:
+        - apt update
+        - apt -y install build-essential gcc-12 linux-headers-generic-hwe-22.04
+        - ls /lib/modules
+        - cd src 
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
