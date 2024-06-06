@@ -322,7 +322,12 @@ int specdriver_mmap_kmem(specdriver_privdata_t *privdata, struct vm_area_struct 
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
+	vm_flags_set(vma, VM_DONTEXPAND);
+	vm_flags_set(vma, VM_DONTDUMP);
+#else
 	vma->vm_flags |= (VM_DONTEXPAND|VM_DONTDUMP);
+#endif
 #else
 	vma->vm_flags |= (VM_RESERVED);
 #endif

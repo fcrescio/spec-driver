@@ -105,10 +105,12 @@ int specdriver_umem_sgmap(specdriver_privdata_t *privdata, umem_handle_t *umem_h
 				current->mm,
 				umem_handle->vma,
 				nr_pages,
-                FOLL_WRITE, //gup flags
+                		FOLL_WRITE, //gup flags
 				pages,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,5,0)
 				NULL,
-                NULL); // if there is an error here your version is between 4.9 and 4.10
+#endif
+                		NULL); // if there is an error here your version is between 4.9 and 4.10
 #else
 				current,
 				current->mm,
