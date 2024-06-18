@@ -6,10 +6,10 @@ KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 INSTALLDIR ?= /lib/modules/$(shell uname -r)/extra
 PWD := $(shell pwd)
 OS_NAME := $(shell cat /etc/os-release | grep -w "ID=" | awk -F= '{print $$2}'  | sed s/\"//g)
-OS_VERSION := $(shell cat /etc/os-release | grep -w "VERSION_ID=" | awk -F= '{print $$2}'  | sed s/\"//g)
+OS_VERSION := $(shell cat /etc/os-release | grep -w "VERSION_ID=" | awk -F= '{print $$2}' |  awk -F. '{print $$1}' | sed s/\"//g)
 
 ifeq ($(OS_NAME),almalinux)
-    ifeq ($(OS_VERSION),9.3)
+    ifeq ($(OS_VERSION),9)
        KBUILD_CFLAGS += -DKERNEL_ALMA_9
     endif
 endif
