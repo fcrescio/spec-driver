@@ -7,10 +7,11 @@ INSTALLDIR ?= /lib/modules/$(shell uname -r)/extra
 PWD := $(shell pwd)
 OS_NAME := $(shell cat /etc/os-release | grep -w "ID=" | awk -F= '{print $$2}'  | sed s/\"//g)
 OS_VERSION := $(shell cat /etc/os-release | grep -w "VERSION_ID=" | awk -F= '{print $$2}' |  awk -F. '{print $$1}' | sed s/\"//g)
+OS_MINOR :=  $(shell cat /etc/os-release | grep -w "VERSION_ID=" | awk -F= '{print $$2}' |  awk -F. '{print $$2}' | sed s/\"//g)
 
 ifeq ($(OS_NAME),almalinux)
     ifeq ($(OS_VERSION),9)
-       KBUILD_CFLAGS += -DKERNEL_ALMA_9
+       KBUILD_CFLAGS += -DKERNEL_ALMA=${OS_VERSION}${OS_MINOR}
     endif
 endif
 
@@ -18,6 +19,7 @@ endif
 default:
 	@echo "OS_NAME: $(OS_NAME)"
 	@echo "OS_VERSION: $(OS_VERSION)"
+	@echo "OS_VERSION: $(OS_MINOR)"
 	@echo "KBUILD_CFLAGS: $(KBUILD_CFLAGS)"
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
