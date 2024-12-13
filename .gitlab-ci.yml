@@ -1,11 +1,3 @@
-build_cc7:
-    image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-    stage: build
-    script:
-        - yum install -y gcc kernel kernel-devel kernel-headers make libelf-dev elfutils-libelf-devel
-        - cd src
-        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
-
 build_c8:
     image: gitlab-registry.cern.ch/linuxsupport/c8-base
     stage: build
@@ -40,8 +32,8 @@ build_u22:
         - cd src 
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
 
-build_u23:
-    image: docker.io/library/ubuntu:23.04
+build_u24:
+    image: docker.io/library/ubuntu:24.04
     stage: build
     script:
         - apt update
