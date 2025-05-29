@@ -46,6 +46,7 @@ build_alma9:
     image: gitlab-registry.cern.ch/linuxsupport/alma9-base
     stage: build
     script:
+        - dnf upgrade -y
         - yum install -y gcc kernel kernel-devel kernel-headers make elfutils-libelf-devel
         - cd src
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
