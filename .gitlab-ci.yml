@@ -61,3 +61,13 @@ build_u22_hwe:
         - ls /lib/modules
         - cd src 
         - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
+
+build_u2504:
+    image: docker.io/library/ubuntu:25.04
+    stage: build
+    script:
+        - apt update
+        - apt -y install build-essential linux-headers-generic
+        - ls /lib/modules
+        - cd src
+        - make KERNELDIR=/lib/modules/$(ls /lib/modules)/build
