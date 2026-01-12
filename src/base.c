@@ -92,6 +92,10 @@ static bool force_dma32;
 module_param(force_dma32, bool, 0444);
 MODULE_PARM_DESC(force_dma32, "Force 32-bit DMA mask (for 32-bit-only devices)");
 
+bool specdriver_debug;
+module_param(specdriver_debug, bool, 0644);
+MODULE_PARM_DESC(specdriver_debug, "Enable verbose debug logging");
+
 /* Module class */
 static struct class_compat *specdriver_class;
 
@@ -209,6 +213,8 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
 	int devid = 0;
 	int dma_mask_bits = 0;
 	int dma_ret = 0;
+	bool msi_enabled = false;
+	bool mwi_enabled = false;
 
 	/* Get our SPEC board or atleast GN4124 */
     if ((id->vendor == PCIE_SPEC_VENDOR_ID) &&
@@ -255,12 +261,16 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
 	}
     
     /* LEts use MSI interrupts */
-    if (pci_enable_msi(pdev) != 0) 
-        mod_info("Failed activating MSI!"); 
+    if (pci_enable_msi(pdev) != 0)
+        mod_info("Failed activating MSI!");
+    else
+        msi_enabled = true;
 
     /* Set Memory-Write-Invalidate support */
     if ((err = pci_set_mwi(pdev)) != 0)
 	mod_info("MWI not supported. Continue without enabling MWI.\n");
+    else
+        mwi_enabled = true;
 
     /* Get / Increment the device id */
     devid = atomic_inc_return(&specdriver_deviceCount) - 1;
@@ -287,6 +297,10 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
     pci_set_drvdata( pdev, privdata );
     privdata->pdev = pdev;
     privdata->dma_mask_bits = dma_mask_bits;
+
+    mod_info_dbg_param("Probe summary vendor=%04x device=%04x subsys=%04x:%04x dma_mask=%d msi=%s mwi=%s\n",
+        pdev->vendor, pdev->device, pdev->subsystem_vendor, pdev->subsystem_device,
+        dma_mask_bits, msi_enabled ? "on" : "off", mwi_enabled ? "on" : "off");
  
     /* Device add to sysfs */
     devno = MKDEV(MAJOR(specdriver_devt), MINOR(specdriver_devt) + devid);

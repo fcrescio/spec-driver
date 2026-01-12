@@ -80,6 +80,8 @@ typedef struct  {
 /* Some nice defines that make code more readable */
 /* This is to print nice info in the log */
 
+extern bool specdriver_debug;
+
 #ifdef DEBUG
  #define mod_info( args... ) \
     do { printk( KERN_INFO "%s - %s : ", MODNAME , __FUNCTION__ );\
@@ -87,11 +89,18 @@ typedef struct  {
  #define mod_info_dbg( args... ) \
     do { printk( KERN_INFO "%s - %s : ", MODNAME , __FUNCTION__ );\
     printk( args ); } while(0)
+ #define mod_info_dbg_param( args... ) \
+    do { printk( KERN_INFO "%s - %s : ", MODNAME , __FUNCTION__ );\
+    printk( args ); } while(0)
 #else
  #define mod_info( args... ) \
     do { printk( KERN_INFO "%s: ", MODNAME );\
     printk( args ); } while(0)
  #define mod_info_dbg( args... ) 
+ #define mod_info_dbg_param( args... ) \
+    do { if (specdriver_debug) { \
+    printk( KERN_INFO "%s: ", MODNAME );\
+    printk( args ); } } while(0)
 #endif
 
 #define mod_crit( args... ) \
