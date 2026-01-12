@@ -58,8 +58,11 @@
 
 #ifdef __linux__
     #include <linux/ioctl.h>
+    #include <linux/types.h>
 #elif defined(__APPLE__) && defined(__MACH__)
     #include <sys/ioctl.h>
+    #include <stdint.h>
+    typedef uint64_t __u64;
 #else
     #error Windows sucks!
 #endif
@@ -96,14 +99,15 @@
 #define SPECDRIVER_INT_MAXSOURCES 16
 
 /* Types */
+/* NOTE: pa/addr are 64-bit; this is an ABI change for 32-bit user space. */
 typedef struct {
-	unsigned long pa;
+	__u64 pa;
 	unsigned long size;
 	int handle_id;
 } kmem_handle_t;
 
 typedef struct {
-	unsigned long addr;
+	__u64 addr;
 	unsigned long size;
 } umem_sgentry_t;
 
