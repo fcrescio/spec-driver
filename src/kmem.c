@@ -65,6 +65,10 @@ int specdriver_kmem_alloc(specdriver_privdata_t *privdata, kmem_handle_t *kmem_h
 	kmem_entry->cpua = (unsigned long)retptr;
 	kmem_handle->pa = (__u64)(kmem_entry->dma_handle);
 
+	mod_info_dbg_param("kmem alloc dma=0x%llx size=0x%lx dma_mask=%d\n",
+		(unsigned long long)kmem_entry->dma_handle, kmem_entry->size,
+		privdata->dma_mask_bits);
+
 	set_pages_reserved_compat(kmem_entry->cpua, kmem_entry->size);
 
 	/* Add the kmem_entry to the list of the device */

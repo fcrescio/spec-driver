@@ -29,6 +29,47 @@
 #include "umem.h"		/* prototypes for kernel memory */
 #include "sysfs.h"		/* prototypes for sysfs */
 
+static void specdriver_umem_log_sg(specdriver_privdata_t *privdata,
+	struct scatterlist *sglist, unsigned int nr_pages, unsigned int nents,
+	const char *label)
+{
+	unsigned int i = 0;
+	struct scatterlist *sg = NULL;
+	const unsigned int dump_count = 4;
+	unsigned int tail_start = 0;
+	u64 max_dma_end = 0;
+	bool exceeds_32bit = false;
+
+	if (!specdriver_debug)
+		return;
+
+	tail_start = (nents > dump_count) ? (nents - dump_count) : 0;
+
+	for_each_sg(sglist, sg, nents, i) {
+		u64 addr = (u64)sg_dma_address(sg);
+		u64 len = (u64)sg_dma_len(sg);
+		u64 end = addr + len;
+
+		if (len > 0)
+			end -= 1;
+
+		if (end > max_dma_end)
+			max_dma_end = end;
+
+		if (i < dump_count || i >= tail_start) {
+			mod_info_dbg_param("%s sg[%u] addr=0x%llx len=0x%llx\n",
+				label, i, (unsigned long long)addr, (unsigned long long)len);
+		}
+	}
+
+	if (max_dma_end > 0xffffffffULL)
+		exceeds_32bit = true;
+
+	mod_info_dbg_param("%s summary nr_pages=%u nents=%u max_dma=0x%llx exceeds_32bit=%s dma_mask=%d\n",
+		label, nr_pages, nents, (unsigned long long)max_dma_end,
+		exceeds_32bit ? "yes" : "no", privdata->dma_mask_bits);
+}
+
 /**
  *
  * Reserve a new scatter/gather list and map it from memory to PCI bus addresses.
@@ -171,6 +212,7 @@ int specdriver_umem_sgmap(specdriver_privdata_t *privdata, umem_handle_t *umem_h
 		goto umem_sgmap_unmap;
 
 	mod_info_dbg("Mapped SG list (%d entries).\n", nents);
+	specdriver_umem_log_sg(privdata, sg, nr_pages, nents, "sgmap");
 
 	/* Add an entry to the umem_list of the device, and update the handle with the id */
 	/* Allocate space for the new umem entry */
@@ -322,6 +364,9 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	/* Check if passed SG list is enough */
 	if (umem_sglist->nents < umem_entry->nents)
 		return -EINVAL;					/* sg has not enough entries */
+
+	specdriver_umem_log_sg(privdata, umem_entry->sg, umem_entry->nr_pages,
+		umem_entry->nents, "sgget");
 
 	/* Copy the SG list to the user format */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
