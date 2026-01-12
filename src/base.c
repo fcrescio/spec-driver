@@ -96,6 +96,11 @@ bool specdriver_debug;
 module_param(specdriver_debug, bool, 0644);
 MODULE_PARM_DESC(specdriver_debug, "Enable verbose debug logging");
 
+unsigned int specdriver_max_merged_seg_size;
+module_param(specdriver_max_merged_seg_size, uint, 0644);
+MODULE_PARM_DESC(specdriver_max_merged_seg_size,
+	"Maximum merged SG segment size in bytes (0 = unlimited)");
+
 /* Module class */
 static struct class_compat *specdriver_class;
 

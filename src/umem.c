@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/cdev.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
@@ -68,6 +69,13 @@ static void specdriver_umem_log_sg(specdriver_privdata_t *privdata,
 	mod_info_dbg_param("%s summary nr_pages=%u nents=%u max_dma=0x%llx exceeds_32bit=%s dma_mask=%d\n",
 		label, nr_pages, nents, (unsigned long long)max_dma_end,
 		exceeds_32bit ? "yes" : "no", privdata->dma_mask_bits);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+	mod_info_dbg_param("%s dma_limits max_seg_size=0x%llx seg_boundary=0x%llx\n",
+		label,
+		(unsigned long long)dma_get_max_seg_size(&privdata->pdev->dev),
+		(unsigned long long)dma_get_seg_boundary(&privdata->pdev->dev));
+#endif
 }
 
 /**
@@ -354,7 +362,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	struct scatterlist *sg = NULL;
 	int idx = 0;
 	__u64 cur_addr = 0;
-	unsigned int cur_size = 0;
+	unsigned long cur_size = 0;
 
 	/* Find the associated umem_entry for this buffer */
 	umem_entry = specdriver_umem_find_entry_id( privdata, umem_sglist->handle_id );
@@ -371,34 +379,45 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	/* Copy the SG list to the user format */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 	if (umem_sglist->type == SPECDRIVER_SG_MERGED) {
+		unsigned long max_merged_seg_size = 0;
 		for_each_sg(umem_entry->sg, sg, umem_entry->nents, i ) {
 			if (i==0) {
 				umem_sglist->sg[0].addr = (__u64)sg_dma_address( sg );
 				umem_sglist->sg[0].size = sg_dma_len( sg );
 				idx = 0;
+				max_merged_seg_size = umem_sglist->sg[0].size;
 			}
 			else {
 				cur_addr = (__u64)sg_dma_address( sg );
 				cur_size = sg_dma_len( sg );
 
 				/* Check if entry fits after current entry */
-				if (cur_addr == (umem_sglist->sg[idx].addr + umem_sglist->sg[idx].size)) {
-					umem_sglist->sg[idx].size += cur_size;
-					continue;
-				}
-
 				/* Skip if the entry is zero-length (yes, it can happen.... at the end of the list) */
 				if (cur_size == 0)
 					continue;
+
+				if (cur_addr == (umem_sglist->sg[idx].addr + umem_sglist->sg[idx].size)) {
+					if (specdriver_max_merged_seg_size == 0 ||
+						(umem_sglist->sg[idx].size + cur_size) <= specdriver_max_merged_seg_size) {
+						umem_sglist->sg[idx].size += cur_size;
+						if (umem_sglist->sg[idx].size > max_merged_seg_size)
+							max_merged_seg_size = umem_sglist->sg[idx].size;
+						continue;
+					}
+				}
 
 				/* None of the above, add new entry */
 				idx++;
 				umem_sglist->sg[idx].addr = cur_addr;
 				umem_sglist->sg[idx].size = cur_size;
+				if (cur_size > max_merged_seg_size)
+					max_merged_seg_size = cur_size;
 			}
 		}
 		/* Set the used size of the SG list */
 		umem_sglist->nents = idx+1;
+		mod_info_dbg_param("sgget merged max_seg_size=0x%lx limit=0x%lx\n",
+			max_merged_seg_size, specdriver_max_merged_seg_size);
 	} else {
 		for_each_sg(umem_entry->sg, sg, umem_entry->nents, i ) {
 			mod_info_dbg("entry: %d\n",i);
@@ -415,6 +434,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	}
 #else
 	if (umem_sglist->type == SPECDRIVER_SG_MERGED) {
+		unsigned long max_merged_seg_size = 0;
 		/* Merge entries that are contiguous into a single entry */
 		/* Non-optimal but fast for most cases */
 		/* First one always true */
@@ -423,6 +443,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 		umem_sglist->sg[0].size = sg_dma_len( sg );
 		sg++;
 		idx = 0;
+		max_merged_seg_size = umem_sglist->sg[0].size;
 
 		/* Iterate over the SG entries */
 		for(i=1; i< umem_entry->nents; i++, sg++ ) {
@@ -430,22 +451,31 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 			cur_size = sg_dma_len( sg );
 
 			/* Check if entry fits after current entry */
-			if (cur_addr == (umem_sglist->sg[idx].addr + umem_sglist->sg[idx].size)) {
-				umem_sglist->sg[idx].size += cur_size;
-				continue;
-			}
-
 			/* Skip if the entry is zero-length (yes, it can happen.... at the end of the list) */
 			if (cur_size == 0)
 				continue;
+
+			if (cur_addr == (umem_sglist->sg[idx].addr + umem_sglist->sg[idx].size)) {
+				if (specdriver_max_merged_seg_size == 0 ||
+					(umem_sglist->sg[idx].size + cur_size) <= specdriver_max_merged_seg_size) {
+					umem_sglist->sg[idx].size += cur_size;
+					if (umem_sglist->sg[idx].size > max_merged_seg_size)
+						max_merged_seg_size = umem_sglist->sg[idx].size;
+					continue;
+				}
+			}
 
 			/* None of the above, add new entry */
 			idx++;
 			umem_sglist->sg[idx].addr = cur_addr;
 			umem_sglist->sg[idx].size = cur_size;
+			if (cur_size > max_merged_seg_size)
+				max_merged_seg_size = cur_size;
 		}
 		/* Set the used size of the SG list */
 		umem_sglist->nents = idx+1;
+		mod_info_dbg_param("sgget merged max_seg_size=0x%lx limit=0x%lx\n",
+			max_merged_seg_size, specdriver_max_merged_seg_size);
 	} else {
 		/* Assume pci_map_sg made a good job (ehem..) and just copy it.
 		 * actually, now I assume it just gives them plainly to me. */

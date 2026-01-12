@@ -81,6 +81,7 @@ typedef struct  {
 /* This is to print nice info in the log */
 
 extern bool specdriver_debug;
+extern unsigned int specdriver_max_merged_seg_size;
 
 #ifdef DEBUG
  #define mod_info( args... ) \
