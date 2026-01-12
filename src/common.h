@@ -47,6 +47,7 @@ typedef struct  {
 	struct cdev cdev;					/* char device struct */
 	int mmap_mode;						/* current mmap mode */
 	int mmap_area;						/* current PCI mmap area */
+	int dma_mask_bits;					/* selected DMA mask width */
 
 	int irq_enabled;					/* Non-zero if IRQ is enabled */
 	int irq_count;						/* Just an IRQ counter */

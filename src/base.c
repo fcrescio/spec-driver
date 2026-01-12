@@ -88,6 +88,10 @@ MODULE_AUTHOR("Timon Heim");
 MODULE_DESCRIPTION("SPEC: Simple PCIe Carrier driver");
 MODULE_LICENSE("GPL v2");
 
+static bool force_dma32;
+module_param(force_dma32, bool, 0444);
+MODULE_PARM_DESC(force_dma32, "Force 32-bit DMA mask (for 32-bit-only devices)");
+
 /* Module class */
 static struct class_compat *specdriver_class;
 
@@ -203,6 +207,8 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
 	int devno = 0;
 	specdriver_privdata_t *privdata = NULL;
 	int devid = 0;
+	int dma_mask_bits = 0;
+	int dma_ret = 0;
 
 	/* Get our SPEC board or atleast GN4124 */
     if ((id->vendor == PCIE_SPEC_VENDOR_ID) &&
@@ -227,12 +233,25 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
 	}
     
     /* Setup DMA mask, no idea why ?? */
-	if(dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
+	if (force_dma32) {
+		dma_ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (dma_ret != 0) {
+			mod_info("Unable to force 32-bit DMA mask!\n");
+			err = dma_ret;
+			goto probe_pcien_fail;
+		}
+		dma_mask_bits = 32;
+		mod_info("Forced 32bits bus master DMA capable\n");
+	} else if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
+		dma_mask_bits = 64;
 		mod_info("64bits bus master DMA capable\n");
-	} else if(dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) == 0) {
+	} else if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) == 0) {
+		dma_mask_bits = 32;
 		mod_info("32bits bus master DMA capable\n");
 	} else {
-	    mod_info("Unable to perform DMA mask set operation!\n");
+		mod_info("Unable to perform DMA mask set operation!\n");
+		err = -EIO;
+		goto probe_pcien_fail;
 	}
     
     /* LEts use MSI interrupts */
@@ -267,6 +286,7 @@ static int __devinit specdriver_probe(struct pci_dev *pdev, const struct pci_dev
  
     pci_set_drvdata( pdev, privdata );
     privdata->pdev = pdev;
+    privdata->dma_mask_bits = dma_mask_bits;
  
     /* Device add to sysfs */
     devno = MKDEV(MAJOR(specdriver_devt), MINOR(specdriver_devt) + devid);
