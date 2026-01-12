@@ -63,7 +63,7 @@ int specdriver_kmem_alloc(specdriver_privdata_t *privdata, kmem_handle_t *kmem_h
 	if (retptr == NULL)
 		goto kmem_alloc_mem_fail;
 	kmem_entry->cpua = (unsigned long)retptr;
-	kmem_handle->pa = (unsigned long)(kmem_entry->dma_handle);
+	kmem_handle->pa = (__u64)(kmem_entry->dma_handle);
 
 	set_pages_reserved_compat(kmem_entry->cpua, kmem_entry->size);
 

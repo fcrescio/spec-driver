@@ -311,7 +311,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	specdriver_umem_entry_t *umem_entry = NULL;
 	struct scatterlist *sg = NULL;
 	int idx = 0;
-	dma_addr_t cur_addr = 0;
+	__u64 cur_addr = 0;
 	unsigned int cur_size = 0;
 
 	/* Find the associated umem_entry for this buffer */
@@ -328,12 +328,12 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	if (umem_sglist->type == SPECDRIVER_SG_MERGED) {
 		for_each_sg(umem_entry->sg, sg, umem_entry->nents, i ) {
 			if (i==0) {
-				umem_sglist->sg[0].addr = sg_dma_address( sg );
+				umem_sglist->sg[0].addr = (__u64)sg_dma_address( sg );
 				umem_sglist->sg[0].size = sg_dma_len( sg );
 				idx = 0;
 			}
 			else {
-				cur_addr = sg_dma_address( sg );
+				cur_addr = (__u64)sg_dma_address( sg );
 				cur_size = sg_dma_len( sg );
 
 				/* Check if entry fits after current entry */
@@ -357,7 +357,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 	} else {
 		for_each_sg(umem_entry->sg, sg, umem_entry->nents, i ) {
 			mod_info_dbg("entry: %d\n",i);
-			umem_sglist->sg[i].addr = sg_dma_address( sg );
+			umem_sglist->sg[i].addr = (__u64)sg_dma_address( sg );
 			umem_sglist->sg[i].size = sg_dma_len( sg );
 		}
 
@@ -374,14 +374,14 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 		/* Non-optimal but fast for most cases */
 		/* First one always true */
 		sg=umem_entry->sg;
-		umem_sglist->sg[0].addr = sg_dma_address( sg );
+		umem_sglist->sg[0].addr = (__u64)sg_dma_address( sg );
 		umem_sglist->sg[0].size = sg_dma_len( sg );
 		sg++;
 		idx = 0;
 
 		/* Iterate over the SG entries */
 		for(i=1; i< umem_entry->nents; i++, sg++ ) {
-			cur_addr = sg_dma_address( sg );
+			cur_addr = (__u64)sg_dma_address( sg );
 			cur_size = sg_dma_len( sg );
 
 			/* Check if entry fits after current entry */
@@ -405,7 +405,7 @@ int specdriver_umem_sgget(specdriver_privdata_t *privdata, umem_sglist_t *umem_s
 		/* Assume pci_map_sg made a good job (ehem..) and just copy it.
 		 * actually, now I assume it just gives them plainly to me. */
 		for(i=0, sg=umem_entry->sg ; i< umem_entry->nents; i++, sg++ ) {
-			umem_sglist->sg[i].addr = sg_dma_address( sg );
+			umem_sglist->sg[i].addr = (__u64)sg_dma_address( sg );
 			umem_sglist->sg[i].size = sg_dma_len( sg );
 		}
 		/* Set the used size of the SG list */
